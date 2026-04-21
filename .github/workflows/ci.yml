@@ -27,8 +27,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Import Check
-        run: python -c "from app.main import app; print(app.title)"
+      - name: Test
+        run: pytest -q
 
   frontend:
     runs-on: ubuntu-latest
@@ -47,7 +47,7 @@ jobs:
           cache-dependency-path: frontend/package.json
 
       - name: Install
-        run: npm install
+        run: npm ci
 
       - name: Build
         run: npm run build

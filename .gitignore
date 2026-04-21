@@ -1,6 +1,11 @@
 __pycache__/
 *.py[cod]
 .venv/
+.venv312/
+backend/.venv312/
 node_modules/
 frontend/node_modules/
+frontend/dist/
 .env
+.pytest_cache/
+data/

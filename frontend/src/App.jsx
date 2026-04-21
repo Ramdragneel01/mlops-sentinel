@@ -16,25 +16,61 @@ import {
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 function App() {
+  const [modelFilter, setModelFilter] = useState("all");
+  const [limit, setLimit] = useState(100);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState("");
+
   const [items, setItems] = useState([]);
   const [driftFlag, setDriftFlag] = useState(false);
+  const [avgConfidence, setAvgConfidence] = useState(null);
+  const [totalItems, setTotalItems] = useState(0);
+  const [distribution, setDistribution] = useState({});
+
+  const modelOptions = useMemo(() => {
+    const models = new Set(items.map((item) => item.model_name));
+    return ["all", ...Array.from(models).sort()];
+  }, [items]);
 
   useEffect(() => {
     let active = true;
 
     async function loadSummary() {
+      setLoading(true);
+      setError("");
+
+      const params = new URLSearchParams();
+      params.set("limit", String(limit));
+      if (modelFilter !== "all") {
+        params.set("model_name", modelFilter);
+      }
+
       try {
-        const response = await fetch(`${API_BASE_URL}/summary`);
+        const response = await fetch(`${API_BASE_URL}/summary?${params.toString()}`);
         if (!response.ok) {
           throw new Error(`Summary request failed: ${response.status}`);
         }
+
         const payload = await response.json();
         if (active) {
           setItems(payload.items || []);
           setDriftFlag(Boolean(payload.drift_flag));
+          setAvgConfidence(
+            typeof payload.avg_confidence === "number" ? payload.avg_confidence : null
+          );
+          setTotalItems(Number(payload.total_items || 0));
+          setDistribution(payload.prediction_distribution || {});
+          setLastUpdated(new Date().toLocaleTimeString());
         }
       } catch (error) {
-        console.error(error);
+        if (active) {
+          setError(error instanceof Error ? error.message : "Summary request failed");
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
       }
     }
 
@@ -45,7 +81,7 @@ function App() {
       active = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [limit, modelFilter]);
 
   const latencyData = useMemo(
     () =>
@@ -56,13 +92,14 @@ function App() {
     [items]
   );
 
-  const predictionCounts = useMemo(() => {
-    const counter = new Map();
-    for (const item of items) {
-      counter.set(item.prediction, (counter.get(item.prediction) || 0) + 1);
-    }
-    return Array.from(counter.entries()).map(([prediction, count]) => ({ prediction, count }));
-  }, [items]);
+  const predictionCounts = useMemo(
+    () =>
+      Object.entries(distribution).map(([prediction, count]) => ({
+        prediction,
+        count,
+      })),
+    [distribution]
+  );
 
   return (
     <main style={{ fontFamily: "Segoe UI, sans-serif", padding: 24 }}>
@@ -70,6 +107,68 @@ function App() {
       <p style={{ marginTop: 0, marginBottom: 16 }}>
         Real-time latency and prediction distribution monitoring.
       </p>
+
+      <section
+        style={{
+          marginBottom: 16,
+          display: "grid",
+          gap: 12,
+          gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+        }}
+      >
+        <div style={{ padding: 12, border: "1px solid #d0d7de", borderRadius: 8 }}>
+          <div style={{ fontSize: 12, color: "#555" }}>Total Logs</div>
+          <div style={{ fontWeight: 700, fontSize: 24 }}>{totalItems}</div>
+        </div>
+        <div style={{ padding: 12, border: "1px solid #d0d7de", borderRadius: 8 }}>
+          <div style={{ fontSize: 12, color: "#555" }}>Avg Confidence</div>
+          <div style={{ fontWeight: 700, fontSize: 24 }}>
+            {avgConfidence === null ? "-" : avgConfidence.toFixed(3)}
+          </div>
+        </div>
+        <div style={{ padding: 12, border: "1px solid #d0d7de", borderRadius: 8 }}>
+          <div style={{ fontSize: 12, color: "#555" }}>Last Updated</div>
+          <div style={{ fontWeight: 700, fontSize: 24 }}>{lastUpdated || "-"}</div>
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 16, display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <label htmlFor="model-filter" style={{ display: "grid", gap: 6 }}>
+          Model
+          <select
+            id="model-filter"
+            value={modelFilter}
+            onChange={(event) => setModelFilter(event.target.value)}
+          >
+            {modelOptions.map((value) => (
+              <option value={value} key={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label htmlFor="summary-limit" style={{ display: "grid", gap: 6 }}>
+          Summary Limit
+          <select
+            id="summary-limit"
+            value={limit}
+            onChange={(event) => setLimit(Number(event.target.value))}
+          >
+            <option value={30}>30</option>
+            <option value={100}>100</option>
+            <option value={250}>250</option>
+            <option value={500}>500</option>
+          </select>
+        </label>
+      </section>
+
+      {loading && <p>Refreshing telemetry...</p>}
+      {error && (
+        <p role="alert" style={{ color: "#b91c1c", fontWeight: 600 }}>
+          {error}
+        </p>
+      )}
 
       {driftFlag && (
         <div
@@ -89,34 +188,42 @@ function App() {
 
       <section style={{ marginBottom: 24 }}>
         <h2 style={{ marginBottom: 8 }}>Latency</h2>
-        <div style={{ width: "100%", height: 280 }}>
-          <ResponsiveContainer>
-            <LineChart data={latencyData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="index" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="latency_ms" stroke="#1976d2" dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        {latencyData.length === 0 ? (
+          <p>No latency data available yet.</p>
+        ) : (
+          <div style={{ width: "100%", height: 280 }}>
+            <ResponsiveContainer>
+              <LineChart data={latencyData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="index" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="latency_ms" stroke="#1976d2" dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </section>
 
       <section>
         <h2 style={{ marginBottom: 8 }}>Prediction Distribution</h2>
-        <div style={{ width: "100%", height: 280 }}>
-          <ResponsiveContainer>
-            <BarChart data={predictionCounts}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="prediction" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="count" fill="#2e7d32" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {predictionCounts.length === 0 ? (
+          <p>No prediction data available yet.</p>
+        ) : (
+          <div style={{ width: "100%", height: 280 }}>
+            <ResponsiveContainer>
+              <BarChart data={predictionCounts}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="prediction" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="count" fill="#2e7d32" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </section>
     </main>
   );
