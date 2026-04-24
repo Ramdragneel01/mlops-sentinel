@@ -33,3 +33,9 @@ class InMemoryRateLimiter:
 
             self._windows[key] = (window_start, count + 1)
             return True
+
+    def clear(self) -> None:
+        """Clear limiter state; useful for deterministic testing."""
+
+        with self._lock:
+            self._windows.clear()

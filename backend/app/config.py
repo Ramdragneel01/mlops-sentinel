@@ -19,6 +19,7 @@ class Settings:
     summary_size: int
     drift_confidence_threshold: float
     rate_limit_per_minute: int
+    api_key: str
 
 
 @lru_cache(maxsize=1)
@@ -38,6 +39,7 @@ def get_settings() -> Settings:
     summary_size = int(os.getenv("MLOPS_SUMMARY_SIZE", "100"))
     drift_confidence_threshold = float(os.getenv("MLOPS_DRIFT_THRESHOLD", "0.55"))
     rate_limit_per_minute = int(os.getenv("MLOPS_RATE_LIMIT_PER_MINUTE", "600"))
+    api_key = os.getenv("MLOPS_API_KEY", "").strip()
 
     return Settings(
         app_name=app_name,
@@ -47,4 +49,5 @@ def get_settings() -> Settings:
         summary_size=summary_size,
         drift_confidence_threshold=drift_confidence_threshold,
         rate_limit_per_minute=rate_limit_per_minute,
+        api_key=api_key,
     )

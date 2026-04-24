@@ -17,6 +17,7 @@
 3. `MLOPS_SUMMARY_SIZE`
 4. `MLOPS_DRIFT_THRESHOLD`
 5. `MLOPS_RATE_LIMIT_PER_MINUTE`
+6. `MLOPS_API_KEY`
 
 ## Production Considerations
 
@@ -25,6 +26,11 @@
 3. Enable TLS at ingress/reverse-proxy layer.
 4. Add alert rules in Prometheus for sustained errors and high latency.
 5. Run vulnerability scanning for base images before release.
+
+## CI and Release
+
+1. CI workflow: `.github/workflows/ci.yml`
+2. Release workflow: `.github/workflows/release.yml`
 
 ## Rollback
 

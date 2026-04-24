@@ -15,7 +15,7 @@ Production-grade observability service for model inference traffic.
 ## Implemented Features
 
 1. FastAPI backend with persistence, input validation, request IDs, and security headers.
-2. Rate-limited ingestion path and configurable drift thresholding.
+2. Rate-limited ingestion path, optional API key auth, and configurable drift thresholding.
 3. React dashboard with model filtering, KPI cards, and alert/error states.
 4. Prometheus scrape compatibility and Docker Compose local stack.
 5. Integration tests for core API flows.
@@ -47,6 +47,13 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+Optional backend security env vars:
+
+```bash
+MLOPS_API_KEY=
+MLOPS_RATE_LIMIT_PER_MINUTE=600
+```
+
 Frontend:
 
 ```bash
@@ -62,3 +69,5 @@ npm run dev -- --host 0.0.0.0 --port 4173
 3. Review security policy: `SECURITY.md`
 4. Review API contract: `docs/API.md`
 5. Review deployment guide: `docs/DEPLOYMENT.md`
+6. Review collaboration context: `.claude/CLAUDE.md`
+7. Review release workflow: `.github/workflows/release.yml`

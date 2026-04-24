@@ -3,6 +3,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.2.1] - 2026-04-24
+
+### Added
+
+1. Optional API key auth for `/log`, `/summary`, and `/export` via `MLOPS_API_KEY`.
+2. Backend tests for API key enforcement and ingestion rate-limit behavior.
+3. Repository collaboration context file `.claude/CLAUDE.md`.
+4. Release workflow `.github/workflows/release.yml`.
+
+### Changed
+
+1. CI workflow expanded with backend/frontend dependency audit checks.
+2. API, deployment, testing, README, and env docs updated for auth and release parity.
+
 ## [0.2.0] - 2026-04-21
 
 ### Added

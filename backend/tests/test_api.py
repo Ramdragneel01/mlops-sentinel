@@ -1,19 +1,30 @@
 
 """Integration tests for mlops-sentinel FastAPI endpoints."""
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 import pytest
 
-from app.main import app, storage
+from app import main as main_module
+from app.main import app, rate_limiter, storage
 
 client = TestClient(app)
 
 
+def _override_settings(monkeypatch, **changes):
+    """Apply temporary runtime setting overrides for endpoint security tests."""
+
+    monkeypatch.setattr(main_module, "settings", replace(main_module.settings, **changes))
+
+
 @pytest.fixture(autouse=True)
-def reset_storage():
+def reset_storage(monkeypatch):
     """Clear persisted logs between tests for deterministic assertions."""
+
+    rate_limiter.clear()
+    _override_settings(monkeypatch, api_key="", rate_limit_per_minute=600)
 
     with storage._connect() as connection:  # pylint: disable=protected-access
         connection.execute("DELETE FROM inference_logs")
@@ -24,6 +35,8 @@ def reset_storage():
     with storage._connect() as connection:  # pylint: disable=protected-access
         connection.execute("DELETE FROM inference_logs")
         connection.commit()
+
+    rate_limiter.clear()
 
 
 def test_health_endpoint_reports_backend_status():
@@ -87,3 +100,74 @@ def test_export_csv_returns_expected_content_type():
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/csv")
     assert "model_name,latency_ms,prediction,confidence,timestamp" in response.text
+
+
+def test_log_requires_api_key_when_configured(monkeypatch):
+    """Log endpoint should enforce API key when runtime key is configured."""
+
+    _override_settings(monkeypatch, api_key="secret-key")
+
+    unauthorized = client.post(
+        "/log",
+        json={
+            "model_name": "risk-model-v1",
+            "latency_ms": 11.0,
+            "prediction": "approved",
+            "confidence": 0.91,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+    assert unauthorized.status_code == 401
+
+    authorized = client.post(
+        "/log",
+        headers={"X-API-Key": "secret-key"},
+        json={
+            "model_name": "risk-model-v1",
+            "latency_ms": 11.0,
+            "prediction": "approved",
+            "confidence": 0.91,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+    assert authorized.status_code == 200
+
+
+def test_health_is_public_when_api_key_enabled(monkeypatch):
+    """Health endpoint should remain public for readiness probes."""
+
+    _override_settings(monkeypatch, api_key="secret-key")
+
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json()["status"] in {"ok", "degraded"}
+
+
+def test_log_rate_limit_returns_429(monkeypatch):
+    """Log endpoint should return 429 once per-client quota is exceeded."""
+
+    _override_settings(monkeypatch, rate_limit_per_minute=1)
+
+    first = client.post(
+        "/log",
+        json={
+            "model_name": "risk-model-v1",
+            "latency_ms": 13.0,
+            "prediction": "approved",
+            "confidence": 0.88,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+    assert first.status_code == 200
+
+    second = client.post(
+        "/log",
+        json={
+            "model_name": "risk-model-v1",
+            "latency_ms": 14.0,
+            "prediction": "approved",
+            "confidence": 0.87,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+    assert second.status_code == 429

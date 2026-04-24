@@ -11,6 +11,8 @@ Current integration coverage includes:
 2. `/log` ingestion and persistence.
 3. `/summary` aggregates and distribution.
 4. `/export` CSV contract.
+5. API key enforcement behavior for protected endpoints.
+6. `/log` rate-limit behavior.
 
 ## Frontend
 

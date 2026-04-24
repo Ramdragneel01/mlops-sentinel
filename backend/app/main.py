@@ -8,9 +8,10 @@ from datetime import datetime, timezone
 import json
 from statistics import mean
 from time import perf_counter
+from typing import Annotated
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
@@ -70,6 +71,20 @@ DRIFT_GAUGE = Gauge(
 )
 
 
+def _require_api_key(
+    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+) -> None:
+    """Validate optional API key auth for protected telemetry endpoints."""
+
+    if not settings.api_key:
+        return
+    if x_api_key != settings.api_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+AuthDep = Annotated[None, Depends(_require_api_key)]
+
+
 @app.middleware("http")
 async def request_context_middleware(request: Request, call_next):
     """Attach request id, security headers, and HTTP-level metrics for each request."""
@@ -116,7 +131,7 @@ def health() -> dict[str, object]:
 
 
 @app.post("/log")
-def ingest_log(payload: InferenceLog, request: Request) -> dict[str, object]:
+def ingest_log(payload: InferenceLog, request: Request, _: AuthDep = None) -> dict[str, object]:
     """Ingest one inference log event and update metrics/detection state."""
 
     client_key = request.client.host if request.client else "unknown"
@@ -146,6 +161,7 @@ def ingest_log(payload: InferenceLog, request: Request) -> dict[str, object]:
 def summary(
     limit: int = Query(default=settings.summary_size, ge=1, le=500),
     model_name: str | None = Query(default=None),
+    _: AuthDep = None,
 ) -> SummaryResponse:
     """Return recent log slice and drift signal for dashboard clients."""
 
@@ -171,6 +187,7 @@ def export_logs(
     format: str = Query(default="json", pattern="^(json|csv)$"),
     limit: int = Query(default=1000, ge=1, le=5000),
     model_name: str | None = Query(default=None),
+    _: AuthDep = None,
 ) -> Response:
     """Export recent logs in JSON or CSV for offline analysis."""
 

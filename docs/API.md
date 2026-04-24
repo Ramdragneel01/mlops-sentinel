@@ -3,6 +3,14 @@
 
 Base URL (local): `http://127.0.0.1:8000`
 
+## Authentication
+
+When `MLOPS_API_KEY` is configured, these endpoints require `X-API-Key` header:
+
+1. `POST /log`
+2. `GET /summary`
+3. `GET /export`
+
 ## GET /health
 
 Returns service and storage readiness.
@@ -59,3 +67,14 @@ Query params:
 1. `format`: `json` or `csv`
 2. `limit`: 1..5000
 3. `model_name`: optional
+
+## Error Contract
+
+Error payload fields:
+
+1. `detail`
+
+Protected endpoint errors:
+
+1. `401 Unauthorized` when API key is required and missing/invalid.
+2. `429 Too Many Requests` when ingestion exceeds configured rate limit.
