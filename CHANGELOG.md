@@ -3,6 +3,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.2.2] - 2026-04-27
+
+### Added
+
+1. README visual evidence assets (architecture overview and dashboard preview).
+2. PR dependency review gate in CI.
+3. Frontend build artifact attached to tagged releases.
+
+### Changed
+
+1. CI and release workflows now enforce compile checks, dependency consistency checks, and blocking high-severity audits.
+2. Backend dependencies upgraded to address vulnerability findings:
+- `fastapi` from `0.116.1` to `0.136.1`
+- `pytest` from `8.4.1` to `9.0.3`
+3. Deployment guide expanded with production topology, hardening checklist, and rollback details.
+
 ## [0.2.1] - 2026-04-24
 
 ### Added

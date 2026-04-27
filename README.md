@@ -3,6 +3,9 @@
 
 Production-grade observability service for model inference traffic.
 
+![CI Status](https://github.com/Ramdragneel01/mlops-sentinel/actions/workflows/ci.yml/badge.svg)
+![Release Status](https://github.com/Ramdragneel01/mlops-sentinel/actions/workflows/release.yml/badge.svg)
+
 ## What This Service Does
 
 1. Ingests model inference events (`/log`).
@@ -26,6 +29,22 @@ Production-grade observability service for model inference traffic.
 ```bash
 docker compose up
 ```
+
+Then open:
+
+1. API health: http://127.0.0.1:8000/health
+2. Dashboard: http://127.0.0.1:4173
+3. Prometheus: http://127.0.0.1:9090
+
+## Visual Evidence
+
+Architecture overview:
+
+![mlops-sentinel architecture overview](docs/assets/architecture-overview.svg)
+
+Dashboard preview:
+
+![mlops-sentinel dashboard preview](docs/assets/dashboard-preview.svg)
 
 ## Service Endpoints
 
@@ -62,6 +81,33 @@ npm ci
 npm run dev -- --host 0.0.0.0 --port 4173
 ```
 
+## Production Verification
+
+Run these checks before release tags:
+
+```bash
+# backend
+cd backend
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python -m compileall -q app tests
+python -m pip check
+pytest -q --maxfail=1
+pip-audit -r requirements.txt --progress-spinner off
+
+# frontend
+cd ../frontend
+npm ci
+npm run build
+npm audit --omit=dev --audit-level=high
+```
+
+Expected outcome:
+
+1. Backend tests pass without failures.
+2. Frontend production build succeeds.
+3. Dependency audits return no high-risk blockers.
+
 ## Quality and Security
 
 1. Run backend tests: `cd backend && pytest -q`
@@ -71,3 +117,16 @@ npm run dev -- --host 0.0.0.0 --port 4173
 5. Review deployment guide: `docs/DEPLOYMENT.md`
 6. Review collaboration context: `.claude/CLAUDE.md`
 7. Review release workflow: `.github/workflows/release.yml`
+
+## Limits and Roadmap
+
+Current limits:
+
+1. SQLite is single-node friendly and requires durable-volume planning for scale.
+2. Frontend polling is fixed-interval and can be optimized with adaptive refresh.
+
+Roadmap:
+
+1. Add WebSocket/SSE dashboard mode to reduce polling overhead.
+2. Add retention and compaction controls for long-running telemetry datasets.
+3. Add optional SLO alert bundle for latency and drift anomaly thresholds.

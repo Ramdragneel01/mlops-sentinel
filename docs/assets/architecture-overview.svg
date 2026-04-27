@@ -1,0 +1,62 @@
+<svg width="1200" height="680" viewBox="0 0 1200 680" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">mlops-sentinel architecture overview</title>
+  <desc id="desc">Flow from inference clients into FastAPI backend, SQLite storage, frontend dashboard, and Prometheus metrics scraping.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1f2937"/>
+      <stop offset="100%" stop-color="#0b1220"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#60a5fa"/>
+    </marker>
+    <style>
+      .title { font: 700 36px 'Segoe UI', Arial, sans-serif; fill: #f8fafc; }
+      .subtitle { font: 500 18px 'Segoe UI', Arial, sans-serif; fill: #cbd5e1; }
+      .card-title { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #e2e8f0; }
+      .card-text { font: 500 15px 'Segoe UI', Arial, sans-serif; fill: #cbd5e1; }
+      .edge { stroke: #60a5fa; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .edge-alt { stroke: #34d399; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="680" fill="url(#bg)"/>
+
+  <text x="56" y="66" class="title">mlops-sentinel Architecture</text>
+  <text x="56" y="98" class="subtitle">Inference telemetry pipeline, dashboard read model, and metrics observability path</text>
+
+  <rect x="72" y="180" rx="18" ry="18" width="250" height="160" fill="url(#card)" stroke="#334155"/>
+  <text x="96" y="224" class="card-title">Inference Clients</text>
+  <text x="96" y="258" class="card-text">Model-serving services</text>
+  <text x="96" y="282" class="card-text">send POST /log events</text>
+
+  <rect x="420" y="130" rx="20" ry="20" width="360" height="250" fill="url(#card)" stroke="#1d4ed8"/>
+  <text x="448" y="176" class="card-title">FastAPI Backend</text>
+  <text x="448" y="210" class="card-text">Validation + rate limit + auth</text>
+  <text x="448" y="236" class="card-text">Endpoints: /log, /summary, /export</text>
+  <text x="448" y="262" class="card-text">Ops endpoints: /health, /metrics</text>
+  <text x="448" y="288" class="card-text">Security headers and request IDs</text>
+
+  <rect x="880" y="90" rx="18" ry="18" width="250" height="150" fill="url(#card)" stroke="#047857"/>
+  <text x="908" y="134" class="card-title">Prometheus</text>
+  <text x="908" y="164" class="card-text">Scrapes /metrics</text>
+  <text x="908" y="188" class="card-text">for latency and health</text>
+
+  <rect x="880" y="290" rx="18" ry="18" width="250" height="150" fill="url(#card)" stroke="#7c3aed"/>
+  <text x="908" y="334" class="card-title">React Dashboard</text>
+  <text x="908" y="364" class="card-text">Polls /summary for KPI</text>
+  <text x="908" y="388" class="card-text">and drift signals</text>
+
+  <rect x="420" y="450" rx="18" ry="18" width="360" height="150" fill="url(#card)" stroke="#0891b2"/>
+  <text x="448" y="496" class="card-title">SQLite Storage</text>
+  <text x="448" y="526" class="card-text">Durable inference log retention</text>
+  <text x="448" y="550" class="card-text">for export and replay analysis</text>
+
+  <path class="edge" d="M322 260 L420 260"/>
+  <path class="edge" d="M780 198 L880 165"/>
+  <path class="edge" d="M780 280 L880 355"/>
+  <path class="edge-alt" d="M600 380 L600 450"/>
+</svg>

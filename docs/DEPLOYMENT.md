@@ -6,9 +6,20 @@
 1. Copy `.env.example` to `.env` and adjust values.
 2. Run `docker compose up --build`.
 3. Validate endpoints:
-   1. API: `http://127.0.0.1:8000/health`
-   2. UI: `http://127.0.0.1:4173`
-   3. Prometheus: `http://127.0.0.1:9090`
+1. API: `http://127.0.0.1:8000/health`
+2. UI: `http://127.0.0.1:4173`
+3. Prometheus: `http://127.0.0.1:9090`
+
+## Production Topology
+
+Recommended runtime topology:
+
+1. FastAPI backend container behind TLS-terminating ingress.
+2. Frontend static bundle served by CDN or static web host.
+3. Prometheus deployed in a monitored internal network segment.
+4. Persistent storage mounted for telemetry database path.
+
+For higher scale and multi-writer durability, migrate persistence from SQLite to a managed relational store.
 
 ## Environment Variables
 
@@ -19,6 +30,16 @@
 5. `MLOPS_RATE_LIMIT_PER_MINUTE`
 6. `MLOPS_API_KEY`
 
+## Deployment Hardening Checklist
+
+1. Restrict `MLOPS_CORS_ORIGINS` to trusted production domains only.
+2. Set `MLOPS_API_KEY` for protected ingestion and summary/export access paths.
+3. Mount `MLOPS_DB_PATH` on encrypted durable storage.
+4. Enforce container image pinning by digest in deployment manifests.
+5. Set CPU/memory requests and limits for backend, frontend, and Prometheus.
+6. Ensure backend security headers are validated via ingress smoke tests.
+7. Run vulnerability scans before production promotion.
+
 ## Production Considerations
 
 1. Store telemetry data in a durable volume.
@@ -26,14 +47,17 @@
 3. Enable TLS at ingress/reverse-proxy layer.
 4. Add alert rules in Prometheus for sustained errors and high latency.
 5. Run vulnerability scanning for base images before release.
+6. Configure log retention and backup cadence for compliance expectations.
 
 ## CI and Release
 
 1. CI workflow: `.github/workflows/ci.yml`
 2. Release workflow: `.github/workflows/release.yml`
+3. Release tags: `v*.*.*` trigger test/build/audit verification before publishing.
 
 ## Rollback
 
 1. Re-deploy previous container tag.
 2. Verify `/health` and dashboard charts recover.
 3. Confirm no schema incompatibility for persisted data.
+4. Restore telemetry database snapshot if rollback requires data state rewind.

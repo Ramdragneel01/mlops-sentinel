@@ -1,0 +1,57 @@
+<svg width="1200" height="680" viewBox="0 0 1200 680" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">mlops-sentinel dashboard preview</title>
+  <desc id="desc">Illustrative monitoring dashboard preview with latency and confidence trend charts.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1220"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#1f2937"/>
+    </linearGradient>
+    <style>
+      .title { font: 700 32px 'Segoe UI', Arial, sans-serif; fill: #f8fafc; }
+      .meta { font: 500 16px 'Segoe UI', Arial, sans-serif; fill: #cbd5e1; }
+      .kpi-title { font: 600 16px 'Segoe UI', Arial, sans-serif; fill: #94a3b8; }
+      .kpi-value { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #e2e8f0; }
+      .axis { stroke: #334155; stroke-width: 1; }
+      .lineA { stroke: #60a5fa; stroke-width: 3; fill: none; }
+      .lineB { stroke: #34d399; stroke-width: 3; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="680" fill="url(#bg)"/>
+  <text x="48" y="58" class="title">mlops-sentinel Dashboard Preview</text>
+  <text x="48" y="88" class="meta">Illustrative runtime view: latency, throughput, and confidence drift indicators</text>
+
+  <rect x="44" y="126" width="262" height="120" rx="16" fill="url(#panel)" stroke="#334155"/>
+  <text x="66" y="164" class="kpi-title">Requests (last 5m)</text>
+  <text x="66" y="206" class="kpi-value">12,480</text>
+
+  <rect x="326" y="126" width="262" height="120" rx="16" fill="url(#panel)" stroke="#334155"/>
+  <text x="348" y="164" class="kpi-title">P95 Latency</text>
+  <text x="348" y="206" class="kpi-value">182 ms</text>
+
+  <rect x="608" y="126" width="262" height="120" rx="16" fill="url(#panel)" stroke="#334155"/>
+  <text x="630" y="164" class="kpi-title">Drift Flags</text>
+  <text x="630" y="206" class="kpi-value">3 active</text>
+
+  <rect x="890" y="126" width="262" height="120" rx="16" fill="url(#panel)" stroke="#334155"/>
+  <text x="912" y="164" class="kpi-title">Avg Confidence</text>
+  <text x="912" y="206" class="kpi-value">0.81</text>
+
+  <rect x="44" y="272" width="706" height="360" rx="16" fill="url(#panel)" stroke="#334155"/>
+  <text x="66" y="308" class="meta">Latency Trend (ms)</text>
+  <line x1="84" y1="592" x2="716" y2="592" class="axis"/>
+  <line x1="84" y1="332" x2="84" y2="592" class="axis"/>
+  <polyline class="lineA" points="84,540 144,522 204,496 264,468 324,474 384,438 444,424 504,408 564,388 624,374 684,362 716,354"/>
+
+  <rect x="770" y="272" width="382" height="360" rx="16" fill="url(#panel)" stroke="#334155"/>
+  <text x="792" y="308" class="meta">Confidence Trend</text>
+  <line x1="804" y1="592" x2="1124" y2="592" class="axis"/>
+  <line x1="804" y1="332" x2="804" y2="592" class="axis"/>
+  <polyline class="lineB" points="804,388 838,396 872,402 906,414 940,430 974,446 1008,458 1042,472 1076,486 1110,500"/>
+  <line x1="804" y1="470" x2="1124" y2="470" stroke="#ef4444" stroke-dasharray="8 6" stroke-width="2"/>
+  <text x="814" y="462" class="meta">drift threshold</text>
+</svg>

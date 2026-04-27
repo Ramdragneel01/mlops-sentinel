@@ -9,9 +9,14 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: mlops-sentinel-release-${{ github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   verify-and-release:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -20,7 +25,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install backend dependencies
         working-directory: backend
@@ -28,9 +33,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Backend compile check
+        working-directory: backend
+        run: python -m compileall -q app tests
+
+      - name: Backend dependency consistency
+        working-directory: backend
+        run: python -m pip check
+
       - name: Run backend tests
         working-directory: backend
-        run: pytest -q
+        run: pytest -q --maxfail=1
+
+      - name: Backend dependency audit
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip-audit
+          pip-audit -r requirements.txt --progress-spinner off
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -45,7 +64,16 @@ jobs:
           npm ci
           npm run build
 
+      - name: Frontend dependency audit
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Package frontend artifact
+        run: tar -czf mlops-sentinel-frontend-dist-${{ github.ref_name }}.tgz -C frontend dist
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          files: |
+            mlops-sentinel-frontend-dist-${{ github.ref_name }}.tgz
