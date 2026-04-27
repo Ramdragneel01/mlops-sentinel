@@ -51,6 +51,17 @@ def test_health_endpoint_reports_backend_status():
     assert "total_logs" in payload
 
 
+def test_readiness_endpoint_reports_dependency_state():
+    """Readiness endpoint should expose dependency status for orchestrator probes."""
+
+    response = client.get("/ready")
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["status"] == "ready"
+    assert payload["db_available"] is True
+
+
 def test_log_ingest_and_summary_flow():
     """Posting a log should reflect in summary output and aggregates."""
 

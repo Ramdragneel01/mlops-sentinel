@@ -13,7 +13,9 @@ from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse, Response
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 
 from .config import get_settings
@@ -26,6 +28,9 @@ storage = LogStorage(settings.db_path)
 rate_limiter = InMemoryRateLimiter(window_seconds=60)
 
 app = FastAPI(title=settings.app_name, version=settings.app_version)
+
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
+app.add_middleware(GZipMiddleware, minimum_size=settings.gzip_minimum_size)
 
 app.add_middleware(
     CORSMiddleware,
@@ -71,6 +76,18 @@ DRIFT_GAUGE = Gauge(
 )
 
 
+def _apply_standard_security_headers(response: Response) -> None:
+    """Apply response headers that reduce common browser-side attack vectors."""
+
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+    if settings.enable_hsts:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
+
 def _require_api_key(
     x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
 ) -> None:
@@ -91,10 +108,22 @@ async def request_context_middleware(request: Request, call_next):
 
     request_id = request.headers.get("X-Request-ID", str(uuid4()))
     start = perf_counter()
-    response = None
+    response: Response | None = None
 
     try:
-        response = await call_next(request)
+        if request.method in {"POST", "PUT", "PATCH"}:
+            raw_content_length = request.headers.get("content-length", "").strip()
+            if raw_content_length:
+                try:
+                    content_length = int(raw_content_length)
+                except ValueError:
+                    response = JSONResponse(status_code=400, content={"detail": "Invalid Content-Length header"})
+                else:
+                    if content_length > settings.max_payload_bytes:
+                        response = JSONResponse(status_code=413, content={"detail": "Payload too large"})
+
+        if response is None:
+            response = await call_next(request)
     except Exception:
         REQUEST_COUNTER.labels(
             method=request.method,
@@ -109,10 +138,7 @@ async def request_context_middleware(request: Request, call_next):
     REQUEST_COUNTER.labels(method=request.method, endpoint=request.url.path, status=str(response.status_code)).inc()
 
     response.headers["X-Request-ID"] = request_id
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    _apply_standard_security_headers(response)
     return response
 
 
@@ -128,6 +154,19 @@ def health() -> dict[str, object]:
         "db_available": db_available,
         "total_logs": storage.count_logs(),
     }
+
+
+@app.get("/ready")
+def readiness() -> JSONResponse:
+    """Return readiness probe response with HTTP 503 when dependencies are unavailable."""
+
+    db_available = storage.is_available()
+    payload = {
+        "status": "ready" if db_available else "not_ready",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "db_available": db_available,
+    }
+    return JSONResponse(status_code=200 if db_available else 503, content=payload)
 
 
 @app.post("/log")

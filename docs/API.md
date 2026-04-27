@@ -5,7 +5,7 @@ Base URL (local): `http://127.0.0.1:8000`
 
 ## Authentication
 
-When `MLOPS_API_KEY` is configured, these endpoints require `X-API-Key` header:
+When `MLOPS_API_KEY` or `MLOPS_API_KEY_FILE` is configured, these endpoints require `X-API-Key` header:
 
 1. `POST /log`
 2. `GET /summary`
@@ -21,6 +21,14 @@ Response fields:
 3. `db_path`: configured SQLite path
 4. `db_available`: boolean
 5. `total_logs`: integer
+
+## GET /ready
+
+Returns orchestrator readiness state.
+
+Behavior:
+1. Returns `200` with `status=ready` when storage dependency is available.
+2. Returns `503` with `status=not_ready` when storage dependency is unavailable.
 
 ## POST /log
 
@@ -78,3 +86,8 @@ Protected endpoint errors:
 
 1. `401 Unauthorized` when API key is required and missing/invalid.
 2. `429 Too Many Requests` when ingestion exceeds configured rate limit.
+
+General request validation errors:
+
+1. `400 Bad Request` when `Content-Length` is malformed.
+2. `413 Payload Too Large` when request body exceeds `MLOPS_MAX_PAYLOAD_BYTES`.
