@@ -26,6 +26,8 @@ Production-grade observability service for model inference traffic.
 
 ## Quick Start
 
+Development stack:
+
 ```bash
 docker compose up
 ```
@@ -35,6 +37,17 @@ Then open:
 1. API health: http://127.0.0.1:8000/health
 2. Dashboard: http://127.0.0.1:4173
 3. Prometheus: http://127.0.0.1:9090
+
+Production stack:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Then open:
+
+1. Dashboard: http://127.0.0.1:8080
+2. Prometheus: http://127.0.0.1:9090
 
 ## Visual Evidence
 
@@ -51,6 +64,11 @@ Dashboard preview:
 1. API: http://127.0.0.1:8000
 2. Dashboard: http://127.0.0.1:4173
 3. Prometheus: http://127.0.0.1:9090
+
+Production endpoints:
+
+1. Dashboard + API proxy: http://127.0.0.1:8080
+2. Prometheus: http://127.0.0.1:9090
 
 ## Local Development
 
@@ -71,7 +89,19 @@ Optional backend security env vars:
 ```bash
 MLOPS_API_KEY=
 MLOPS_RATE_LIMIT_PER_MINUTE=600
+MLOPS_ALLOWED_HOSTS=*
+MLOPS_MAX_PAYLOAD_BYTES=65536
+MLOPS_GZIP_MINIMUM_SIZE=1024
+MLOPS_ENABLE_HSTS=false
+MLOPS_API_KEY_FILE=
 ```
+
+Production deployment notes:
+
+1. Use `docker-compose.prod.yml` for immutable production images and reverse-proxied API traffic.
+2. Prefer file-based secret loading with `MLOPS_API_KEY_FILE` (or `MLOPS_API_KEY_SECRET_FILE` for compose secret mount) and restrict `MLOPS_CORS_ORIGINS` and `MLOPS_ALLOWED_HOSTS` before deployment.
+3. Set `MLOPS_ENABLE_HSTS=true` only when TLS termination is active.
+4. Keep local secret files in `secrets/` and never commit secret values.
 
 Frontend:
 
@@ -107,6 +137,14 @@ Expected outcome:
 1. Backend tests pass without failures.
 2. Frontend production build succeeds.
 3. Dependency audits return no high-risk blockers.
+
+## Release Artifacts
+
+Version tags `v*.*.*` trigger `.github/workflows/release.yml` and publish:
+
+1. GitHub Release notes and frontend bundle artifact.
+2. Backend image: `ghcr.io/<owner>/mlops-sentinel-backend:<tag>`.
+3. Frontend image: `ghcr.io/<owner>/mlops-sentinel-frontend:<tag>`.
 
 ## Quality and Security
 

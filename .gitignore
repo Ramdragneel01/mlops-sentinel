@@ -9,3 +9,6 @@ frontend/dist/
 .env
 .pytest_cache/
 data/
+secrets/*.txt
+secrets/*.key
+secrets/*.pem

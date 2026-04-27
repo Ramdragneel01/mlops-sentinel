@@ -10,12 +10,36 @@
 2. UI: `http://127.0.0.1:4173`
 3. Prometheus: `http://127.0.0.1:9090`
 
+## Production Deployment (Containerized)
+
+1. Copy `.env.example` to `.env`.
+2. Update `.env` with production-safe values:
+1. `MLOPS_CORS_ORIGINS` set to your UI domain.
+2. `MLOPS_ALLOWED_HOSTS` set to ingress hostnames.
+3. `MLOPS_API_KEY_SECRET_FILE` points to a local secret file path (default: `./secrets/mlops_api_key.txt`).
+4. Create the secret file with a strong random value and restrict file permissions.
+4. `MLOPS_ENABLE_HSTS=true` when TLS termination is configured.
+3. Build and run production topology:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+4. Verify health and readiness:
+1. Frontend: `http://127.0.0.1:8080/healthz`
+2. Backend readiness: `docker compose -f docker-compose.prod.yml exec backend python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3)"`
+3. Prometheus: `http://127.0.0.1:9090`
+
+5. Persist telemetry and metrics using named volumes:
+1. `mlops_sentinel_data`
+2. `prometheus_data`
+
 ## Production Topology
 
 Recommended runtime topology:
 
-1. FastAPI backend container behind TLS-terminating ingress.
-2. Frontend static bundle served by CDN or static web host.
+1. FastAPI backend container on an internal network.
+2. Frontend static bundle served by unprivileged Nginx with `/api` reverse proxy.
 3. Prometheus deployed in a monitored internal network segment.
 4. Persistent storage mounted for telemetry database path.
 
@@ -29,16 +53,23 @@ For higher scale and multi-writer durability, migrate persistence from SQLite to
 4. `MLOPS_DRIFT_THRESHOLD`
 5. `MLOPS_RATE_LIMIT_PER_MINUTE`
 6. `MLOPS_API_KEY`
+7. `MLOPS_API_KEY_FILE`
+8. `MLOPS_API_KEY_SECRET_FILE`
+9. `MLOPS_ALLOWED_HOSTS`
+10. `MLOPS_MAX_PAYLOAD_BYTES`
+11. `MLOPS_GZIP_MINIMUM_SIZE`
+12. `MLOPS_ENABLE_HSTS`
 
 ## Deployment Hardening Checklist
 
 1. Restrict `MLOPS_CORS_ORIGINS` to trusted production domains only.
-2. Set `MLOPS_API_KEY` for protected ingestion and summary/export access paths.
-3. Mount `MLOPS_DB_PATH` on encrypted durable storage.
-4. Enforce container image pinning by digest in deployment manifests.
-5. Set CPU/memory requests and limits for backend, frontend, and Prometheus.
-6. Ensure backend security headers are validated via ingress smoke tests.
-7. Run vulnerability scans before production promotion.
+2. Set API key through file-based secret loading (`MLOPS_API_KEY_FILE`) instead of inline env plaintext where possible.
+3. Restrict `MLOPS_ALLOWED_HOSTS` to ingress domain(s).
+4. Mount `MLOPS_DB_PATH` on encrypted durable storage.
+5. Enforce container image pinning by digest in deployment manifests.
+6. Set CPU/memory requests and limits for backend, frontend, and Prometheus.
+7. Ensure backend and frontend security headers are validated via ingress smoke tests.
+8. Run vulnerability scans before production promotion.
 
 ## Production Considerations
 
@@ -54,6 +85,7 @@ For higher scale and multi-writer durability, migrate persistence from SQLite to
 1. CI workflow: `.github/workflows/ci.yml`
 2. Release workflow: `.github/workflows/release.yml`
 3. Release tags: `v*.*.*` trigger test/build/audit verification before publishing.
+4. Release workflow publishes backend and frontend images to GHCR with semver tags.
 
 ## Rollback
 
