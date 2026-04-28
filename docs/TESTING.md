@@ -13,6 +13,7 @@ Current integration coverage includes:
 4. `/export` CSV contract.
 5. API key enforcement behavior for protected endpoints.
 6. `/log` rate-limit behavior.
+7. End-to-end pipeline handshake across `/log`, `/summary`, `/metrics`, and `/export`.
 
 ## Frontend
 
@@ -31,3 +32,11 @@ Manual checks:
 2. GET `/summary` and verify item count and distribution.
 3. GET `/metrics` to confirm Prometheus exposition.
 4. GET `/export?format=csv` for offline analysis output.
+
+## Synthetic Load Test
+
+1. Start backend locally.
+2. Run:
+`cd backend && python scripts/generate_demo_load.py --base-url http://127.0.0.1:8000 --events 120 --drift-ratio 0.35`
+3. Verify dashboard updates and drift status transitions.
+4. Verify Prometheus metrics growth under `/metrics`.

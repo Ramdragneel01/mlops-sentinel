@@ -23,6 +23,9 @@ Production-grade observability service for model inference traffic.
 4. Prometheus scrape compatibility and Docker Compose local stack.
 5. Integration tests for core API flows.
 6. Documentation baseline: API, deployment, testing, security, contributing, changelog.
+7. Alert rule examples for latency and drift in `docs/ALERTING.md`.
+8. Incident response runbook in `docs/OPERATIONS.md`.
+9. Synthetic load generator for monitoring demonstrations in `backend/scripts/generate_demo_load.py`.
 
 ## Quick Start
 
@@ -58,6 +61,25 @@ Architecture overview:
 Dashboard preview:
 
 ![mlops-sentinel dashboard preview](docs/assets/dashboard-preview.svg)
+
+Drift alert state preview:
+
+![mlops-sentinel drift alert preview](docs/assets/dashboard-drift-alert.svg)
+
+## Dashboard Metric Descriptions
+
+1. Average confidence: rolling confidence mean for selected model telemetry.
+2. Drift flag: confidence-threshold breach signal used for alert routing.
+3. Prediction distribution: class mix used to detect skew and imbalance.
+4. Latency trend: operational latency behavior over recent inference traffic.
+
+## Week 3 Monitoring Loop Additions
+
+1. Added Prometheus alert examples for warning and critical latency thresholds.
+2. Added drift detection alert examples and metric-to-alert mapping.
+3. Added incident response runbook for drift and latency events.
+4. Added synthetic telemetry load script for demo and validation workflows.
+5. Added pipeline handshake integration test coverage for ingest, summary, metrics, and export.
 
 ## Service Endpoints
 
@@ -111,6 +133,15 @@ npm ci
 npm run dev -- --host 0.0.0.0 --port 4173
 ```
 
+Synthetic telemetry load generation:
+
+```bash
+cd backend
+python scripts/generate_demo_load.py --base-url http://127.0.0.1:8000 --model-name risk-model-v1 --events 120 --drift-ratio 0.35
+```
+
+This script generates controlled low-confidence and high-latency events to exercise dashboard drift and alert paths.
+
 ## Production Verification
 
 Run these checks before release tags:
@@ -155,6 +186,8 @@ Version tags `v*.*.*` trigger `.github/workflows/release.yml` and publish:
 5. Review deployment guide: `docs/DEPLOYMENT.md`
 6. Review collaboration context: `.claude/CLAUDE.md`
 7. Review release workflow: `.github/workflows/release.yml`
+8. Review alert examples: `docs/ALERTING.md`
+9. Review incident runbook: `docs/OPERATIONS.md`
 
 ## Limits and Roadmap
 
