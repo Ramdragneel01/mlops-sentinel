@@ -1,6 +1,7 @@
 
 """Integration tests for mlops-sentinel FastAPI endpoints."""
 
+import json
 from dataclasses import replace
 from datetime import datetime, timezone
 
@@ -111,6 +112,45 @@ def test_export_csv_returns_expected_content_type():
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/csv")
     assert "model_name,latency_ms,prediction,confidence,timestamp" in response.text
+
+
+def test_pipeline_handshake_ingest_summary_metrics_and_export_json():
+    """Pipeline should expose consistent state across ingestion, summary, metrics, and export APIs."""
+
+    model_name = "risk-model-handshake"
+
+    for confidence in [0.41, 0.44, 0.49]:
+        response = client.post(
+            "/log",
+            json={
+                "model_name": model_name,
+                "latency_ms": 980.0,
+                "prediction": "review",
+                "confidence": confidence,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "metadata": {"scenario": "pipeline-handshake"},
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "accepted"
+
+    summary_response = client.get(f"/summary?limit=10&model_name={model_name}")
+    assert summary_response.status_code == 200
+    summary_payload = summary_response.json()
+    assert summary_payload["total_items"] == 3
+    assert summary_payload["drift_flag"] is True
+    assert summary_payload["prediction_distribution"]["review"] == 3
+
+    metrics_response = client.get("/metrics")
+    assert metrics_response.status_code == 200
+    assert "inference_latency_ms" in metrics_response.text
+    assert "inference_drift_flag" in metrics_response.text
+
+    export_response = client.get(f"/export?format=json&limit=10&model_name={model_name}")
+    assert export_response.status_code == 200
+    export_payload = json.loads(export_response.text)
+    assert len(export_payload["items"]) == 3
+    assert export_payload["items"][0]["model_name"] == model_name
 
 
 def test_log_requires_api_key_when_configured(monkeypatch):

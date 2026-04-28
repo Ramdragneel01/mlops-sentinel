@@ -3,6 +3,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.3.0] - 2026-04-28
+
+### Added
+
+1. Alerting guide with Prometheus latency and drift alert rules in `docs/ALERTING.md`.
+2. Incident response runbook for drift and latency events in `docs/OPERATIONS.md`.
+3. Synthetic telemetry load generator in `backend/scripts/generate_demo_load.py`.
+4. Drift alert visual evidence asset in `docs/assets/dashboard-drift-alert.svg`.
+5. Integration test for ingest-summary-metrics-export pipeline handshake.
+
+### Changed
+
+1. README expanded with dashboard metric descriptions and Week 3 monitoring loop guidance.
+2. Testing guide updated with synthetic load and pipeline handshake coverage.
+
 ## [0.2.2] - 2026-04-27
 
 ### Added
