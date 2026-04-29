@@ -58,6 +58,18 @@ Architecture overview:
 
 ![mlops-sentinel architecture overview](docs/assets/architecture-overview.svg)
 
+## Architecture Snapshot
+
+```mermaid
+flowchart LR
+	Inference[Inference producers] --> API[FastAPI ingest and summary API]
+	API --> Store[(SQLite telemetry store)]
+	API --> Metrics[/Prometheus metrics/]
+	API --> Dashboard[React dashboard]
+	Metrics --> Prometheus[Prometheus server]
+	Prometheus --> Alerts[Alert rules and operations runbook]
+```
+
 Dashboard preview:
 
 ![mlops-sentinel dashboard preview](docs/assets/dashboard-preview.svg)
@@ -142,6 +154,22 @@ python scripts/generate_demo_load.py --base-url http://127.0.0.1:8000 --model-na
 
 This script generates controlled low-confidence and high-latency events to exercise dashboard drift and alert paths.
 
+## Testing
+
+Core validation commands:
+
+```bash
+# backend
+cd backend
+pytest -q
+
+# frontend
+cd ../frontend
+npm run build
+```
+
+Extended release-grade checks are documented in `docs/TESTING.md` and `docs/OPERATIONS.md`.
+
 ## Production Verification
 
 Run these checks before release tags:
@@ -189,14 +217,12 @@ Version tags `v*.*.*` trigger `.github/workflows/release.yml` and publish:
 8. Review alert examples: `docs/ALERTING.md`
 9. Review incident runbook: `docs/OPERATIONS.md`
 
-## Limits and Roadmap
-
-Current limits:
+## Limitations
 
 1. SQLite is single-node friendly and requires durable-volume planning for scale.
 2. Frontend polling is fixed-interval and can be optimized with adaptive refresh.
 
-Roadmap:
+## Roadmap
 
 1. Add WebSocket/SSE dashboard mode to reduce polling overhead.
 2. Add retention and compaction controls for long-running telemetry datasets.
