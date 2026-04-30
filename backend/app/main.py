@@ -235,6 +235,7 @@ async def handle_http_exception(request: Request, exc: HTTPException) -> JSONRes
             code=_status_to_error_code(exc.status_code),
             message=message,
         ),
+        headers=exc.headers,
     )
 
 
@@ -314,7 +315,11 @@ def ingest_log(payload: InferenceLog, request: Request) -> dict[str, object]:
 
     client_key = request.client.host if request.client else "unknown"
     if not rate_limiter.allow(client_key, settings.rate_limit_per_minute):
-        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+        raise HTTPException(
+            status_code=429,
+            detail="rate_limited",
+            headers={"Retry-After": "60"},
+        )
 
     log_id = storage.insert_log(payload)
 

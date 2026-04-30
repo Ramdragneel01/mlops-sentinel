@@ -21,6 +21,8 @@ This runbook covers incident handling for latency and drift alerts in mlops-sent
 1. Confirm current service state via:
    - GET /health
    - GET /ready
+   - GET /healthz
+   - GET /readyz
 2. Validate ingestion is active:
    - POST /log sample event
    - GET /summary with model filter
@@ -48,6 +50,7 @@ This runbook covers incident handling for latency and drift alerts in mlops-sent
    - reduce ingestion burst load
    - rollback recent deployment
    - scale backend worker count
+   - tune `MLOPS_RATE_LIMIT_PER_MINUTE` if client bursts exceed expected policy
 
 ## Recovery Criteria
 

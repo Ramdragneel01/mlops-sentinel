@@ -85,6 +85,18 @@ def test_readiness_endpoint_reports_dependency_state():
     assert payload["db_available"] is True
 
 
+def test_probe_alias_endpoints_match_primary_probes():
+    """Compatibility aliases should mirror canonical probe responses."""
+
+    health_alias = client.get("/healthz")
+    assert health_alias.status_code == 200
+    assert health_alias.json()["status"] in {"ok", "degraded"}
+
+    ready_alias = client.get("/readyz")
+    assert ready_alias.status_code == 200
+    assert ready_alias.json()["status"] in {"ready", "not_ready"}
+
+
 def test_log_ingest_and_summary_flow():
     """Posting a log should reflect in summary output and aggregates."""
 
@@ -247,6 +259,17 @@ def test_phase1_error_contract_response():
     )
 
 
+def test_error_responses_include_request_and_security_headers(monkeypatch):
+    """Unauthorized responses should preserve request correlation and hardened headers."""
+
+    _override_settings(monkeypatch, api_key="phase1-secret")
+    response = client.get("/summary")
+    assert response.status_code == 401
+    assert response.headers.get("X-Request-ID")
+    assert response.headers.get("X-Content-Type-Options") == "nosniff"
+    assert response.headers.get("X-Frame-Options") == "DENY"
+
+
 def test_health_is_public_when_api_key_enabled(monkeypatch):
     """Health endpoint should remain public for readiness probes."""
 
@@ -284,4 +307,10 @@ def test_log_rate_limit_returns_429(monkeypatch):
             "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     )
-    assert second.status_code == 429
+    _assert_error_contract(
+        second,
+        expected_status=429,
+        expected_code="rate_limited",
+        expected_message="rate_limited",
+    )
+    assert second.headers.get("Retry-After") == "60"

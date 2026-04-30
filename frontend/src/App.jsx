@@ -15,12 +15,69 @@ import {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
+function toSafeNumber(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function calculateP95(latencies) {
+    if (latencies.length === 0) {
+        return null;
+    }
+
+    const sorted = [...latencies].sort((left, right) => left - right);
+    const index = Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1);
+    return sorted[index];
+}
+
+function formatTime(value) {
+    if (!value) {
+        return "-";
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return String(value);
+    }
+
+    return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+    });
+}
+
+function formatValue(value, digits = 2) {
+    if (value === null || value === undefined || Number.isNaN(value)) {
+        return "-";
+    }
+
+    return Number(value).toFixed(digits);
+}
+
+function getConfidenceBand(avgConfidence) {
+    if (avgConfidence === null) {
+        return "No data";
+    }
+
+    if (avgConfidence >= 0.85) {
+        return "High";
+    }
+
+    if (avgConfidence >= 0.7) {
+        return "Moderate";
+    }
+
+    return "Low";
+}
+
 function App() {
     const [modelFilter, setModelFilter] = useState("all");
     const [limit, setLimit] = useState(100);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [lastUpdated, setLastUpdated] = useState("");
+    const [refreshNonce, setRefreshNonce] = useState(0);
 
     const [items, setItems] = useState([]);
     const [driftFlag, setDriftFlag] = useState(false);
@@ -61,7 +118,7 @@ function App() {
                     );
                     setTotalItems(Number(payload.total_items || 0));
                     setDistribution(payload.prediction_distribution || {});
-                    setLastUpdated(new Date().toLocaleTimeString());
+                    setLastUpdated(new Date().toISOString());
                 }
             } catch (error) {
                 if (active) {
@@ -81,60 +138,89 @@ function App() {
             active = false;
             clearInterval(interval);
         };
-    }, [limit, modelFilter]);
+    }, [limit, modelFilter, refreshNonce]);
 
-    const latencyData = useMemo(
-        () =>
-            items.slice(-30).map((item, index) => ({
-                index,
-                latency_ms: item.latency_ms,
-            })),
-        [items]
-    );
+    const latencySeries = useMemo(() => {
+        const timelineItems = items.slice(0, 40).reverse();
+        return timelineItems.map((item, index) => ({
+            id: index,
+            latency_ms: toSafeNumber(item.latency_ms),
+            timestamp: formatTime(item.timestamp)
+        }));
+    }, [items]);
 
     const predictionCounts = useMemo(
         () =>
-            Object.entries(distribution).map(([prediction, count]) => ({
-                prediction,
-                count,
-            })),
+            Object.entries(distribution)
+                .map(([prediction, count]) => ({
+                    prediction,
+                    count: Number(count || 0)
+                }))
+                .sort((left, right) => right.count - left.count),
         [distribution]
     );
 
-    return (
-        <main style={{ fontFamily: "Segoe UI, sans-serif", padding: 24 }}>
-            <h1 style={{ marginBottom: 4 }}>mlops-sentinel</h1>
-            <p style={{ marginTop: 0, marginBottom: 16 }}>
-                Real-time latency and prediction distribution monitoring.
-            </p>
+    const recentItems = useMemo(() => items.slice(0, 8), [items]);
 
-            <section
-                style={{
-                    marginBottom: 16,
-                    display: "grid",
-                    gap: 12,
-                    gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
-                }}
-            >
-                <div style={{ padding: 12, border: "1px solid #d0d7de", borderRadius: 8 }}>
-                    <div style={{ fontSize: 12, color: "#555" }}>Total Logs</div>
-                    <div style={{ fontWeight: 700, fontSize: 24 }}>{totalItems}</div>
+    const p95Latency = useMemo(
+        () => calculateP95(items.map((item) => toSafeNumber(item.latency_ms))),
+        [items]
+    );
+
+    const modelCount = Math.max(modelOptions.length - 1, 0);
+    const confidenceBand = getConfidenceBand(avgConfidence);
+
+    const latencyYAxisWidth = 52;
+
+    const lastUpdatedLabel = lastUpdated ? formatTime(lastUpdated) : "-";
+
+    return (
+        <main className="sentinel-app">
+            <section className="sentinel-hero">
+                <div>
+                    <p className="hero-kicker">MLOps Live Observability</p>
+                    <h1>mlops-sentinel</h1>
+                    <p className="hero-subtitle">
+                        Real-time latency and prediction integrity cockpit with continuous drift watch.
+                    </p>
                 </div>
-                <div style={{ padding: 12, border: "1px solid #d0d7de", borderRadius: 8 }}>
-                    <div style={{ fontSize: 12, color: "#555" }}>Avg Confidence</div>
-                    <div style={{ fontWeight: 700, fontSize: 24 }}>
-                        {avgConfidence === null ? "-" : avgConfidence.toFixed(3)}
-                    </div>
-                </div>
-                <div style={{ padding: 12, border: "1px solid #d0d7de", borderRadius: 8 }}>
-                    <div style={{ fontSize: 12, color: "#555" }}>Last Updated</div>
-                    <div style={{ fontWeight: 700, fontSize: 24 }}>{lastUpdated || "-"}</div>
+                <div className={`drift-chip ${driftFlag ? "drift-alert" : "drift-normal"}`}>
+                    <span className="chip-label">Drift Status</span>
+                    <strong>{driftFlag ? "Alert" : "Stable"}</strong>
                 </div>
             </section>
 
-            <section style={{ marginBottom: 16, display: "flex", gap: 16, flexWrap: "wrap" }}>
-                <label htmlFor="model-filter" style={{ display: "grid", gap: 6 }}>
-                    Model
+            <section className="kpi-grid">
+                <article className="kpi-card">
+                    <span className="kpi-title">Total Logs</span>
+                    <strong className="kpi-value">{totalItems}</strong>
+                    <p className="kpi-note">Records in selected model scope</p>
+                </article>
+                <article className="kpi-card">
+                    <span className="kpi-title">Avg Confidence</span>
+                    <strong className="kpi-value">{formatValue(avgConfidence, 3)}</strong>
+                    <p className="kpi-note">Band: {confidenceBand}</p>
+                </article>
+                <article className="kpi-card">
+                    <span className="kpi-title">P95 Latency (ms)</span>
+                    <strong className="kpi-value">{formatValue(p95Latency, 1)}</strong>
+                    <p className="kpi-note">Tail latency over sampled logs</p>
+                </article>
+                <article className="kpi-card">
+                    <span className="kpi-title">Models Seen</span>
+                    <strong className="kpi-value">{modelCount}</strong>
+                    <p className="kpi-note">Distinct model streams</p>
+                </article>
+                <article className="kpi-card">
+                    <span className="kpi-title">Last Updated</span>
+                    <strong className="kpi-value">{lastUpdatedLabel}</strong>
+                    <p className="kpi-note">Auto refresh: every 5s</p>
+                </article>
+            </section>
+
+            <section className="filters-panel" aria-label="Monitoring filters">
+                <label htmlFor="model-filter" className="control-group">
+                    <span>Model</span>
                     <select
                         id="model-filter"
                         value={modelFilter}
@@ -148,8 +234,8 @@ function App() {
                     </select>
                 </label>
 
-                <label htmlFor="summary-limit" style={{ display: "grid", gap: 6 }}>
-                    Summary Limit
+                <label htmlFor="summary-limit" className="control-group">
+                    <span>Summary Window</span>
                     <select
                         id="summary-limit"
                         value={limit}
@@ -161,67 +247,115 @@ function App() {
                         <option value={500}>500</option>
                     </select>
                 </label>
+
+                <button
+                    type="button"
+                    className="refresh-button"
+                    onClick={() => setRefreshNonce((value) => value + 1)}
+                >
+                    Refresh now
+                </button>
             </section>
 
-            {loading && <p>Refreshing telemetry...</p>}
-            {error && (
-                <p role="alert" style={{ color: "#b91c1c", fontWeight: 600 }}>
+            {loading ? <p className="status-note">Refreshing telemetry feed...</p> : null}
+            {error ? (
+                <p role="alert" className="status-error">
                     {error}
                 </p>
-            )}
+            ) : null}
 
-            {driftFlag && (
-                <div
-                    role="alert"
-                    style={{
-                        marginBottom: 16,
-                        border: "1px solid #d32f2f",
-                        background: "#fdeaea",
-                        color: "#7f1d1d",
-                        padding: 12,
-                        borderRadius: 8,
-                    }}
-                >
-                    Drift alert: rolling confidence dropped below threshold.
+            {driftFlag ? (
+                <div role="alert" className="drift-banner">
+                    Drift alert: rolling confidence dropped below threshold for this selection.
                 </div>
-            )}
+            ) : null}
 
-            <section style={{ marginBottom: 24 }}>
-                <h2 style={{ marginBottom: 8 }}>Latency</h2>
-                {latencyData.length === 0 ? (
-                    <p>No latency data available yet.</p>
-                ) : (
-                    <div style={{ width: "100%", height: 280 }}>
-                        <ResponsiveContainer>
-                            <LineChart data={latencyData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="index" />
-                                <YAxis />
-                                <Tooltip />
-                                <Legend />
-                                <Line type="monotone" dataKey="latency_ms" stroke="#1976d2" dot={false} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
-                )}
+            <section className="chart-grid">
+                <article className="panel">
+                    <header className="panel-header">
+                        <h2>Latency Stream</h2>
+                        <p>Latest 40 events</p>
+                    </header>
+                    {latencySeries.length === 0 ? (
+                        <p className="empty-state">No latency data available yet.</p>
+                    ) : (
+                        <div className="chart-box" role="img" aria-label="Latency trend chart">
+                            <ResponsiveContainer>
+                                <LineChart data={latencySeries} margin={{ top: 10, right: 14, left: 0, bottom: 10 }}>
+                                    <CartesianGrid stroke="#c8d9e8" strokeDasharray="4 5" vertical={false} />
+                                    <XAxis dataKey="timestamp" tick={{ fill: "#38506a", fontSize: 11 }} />
+                                    <YAxis width={latencyYAxisWidth} tick={{ fill: "#38506a", fontSize: 11 }} />
+                                    <Tooltip formatter={(value) => [`${value} ms`, "Latency"]} />
+                                    <Legend />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="latency_ms"
+                                        stroke="#0f9d8f"
+                                        strokeWidth={2.5}
+                                        dot={false}
+                                        name="Latency"
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+                    )}
+                </article>
+
+                <article className="panel">
+                    <header className="panel-header">
+                        <h2>Prediction Distribution</h2>
+                        <p>Class balance snapshot</p>
+                    </header>
+                    {predictionCounts.length === 0 ? (
+                        <p className="empty-state">No prediction data available yet.</p>
+                    ) : (
+                        <div className="chart-box" role="img" aria-label="Prediction distribution chart">
+                            <ResponsiveContainer>
+                                <BarChart data={predictionCounts} margin={{ top: 10, right: 14, left: 0, bottom: 10 }}>
+                                    <CartesianGrid stroke="#c8d9e8" strokeDasharray="4 5" vertical={false} />
+                                    <XAxis dataKey="prediction" tick={{ fill: "#38506a", fontSize: 11 }} />
+                                    <YAxis width={latencyYAxisWidth} tick={{ fill: "#38506a", fontSize: 11 }} />
+                                    <Tooltip formatter={(value) => [value, "Count"]} />
+                                    <Legend />
+                                    <Bar dataKey="count" fill="#ef7f47" radius={[6, 6, 0, 0]} name="Predictions" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    )}
+                </article>
             </section>
 
-            <section>
-                <h2 style={{ marginBottom: 8 }}>Prediction Distribution</h2>
-                {predictionCounts.length === 0 ? (
-                    <p>No prediction data available yet.</p>
+            <section className="panel table-panel">
+                <header className="panel-header">
+                    <h2>Recent Inference Events</h2>
+                    <p>Newest 8 records in current filter</p>
+                </header>
+                {recentItems.length === 0 ? (
+                    <p className="empty-state">No recent events available yet.</p>
                 ) : (
-                    <div style={{ width: "100%", height: 280 }}>
-                        <ResponsiveContainer>
-                            <BarChart data={predictionCounts}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="prediction" />
-                                <YAxis />
-                                <Tooltip />
-                                <Legend />
-                                <Bar dataKey="count" fill="#2e7d32" />
-                            </BarChart>
-                        </ResponsiveContainer>
+                    <div className="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Model</th>
+                                    <th>Prediction</th>
+                                    <th>Confidence</th>
+                                    <th>Latency (ms)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {recentItems.map((item, index) => (
+                                    <tr key={`${item.timestamp || "event"}-${index}`}>
+                                        <td>{formatTime(item.timestamp)}</td>
+                                        <td>{item.model_name || "-"}</td>
+                                        <td>{item.prediction || "-"}</td>
+                                        <td>{formatValue(item.confidence, 3)}</td>
+                                        <td>{formatValue(item.latency_ms, 1)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 )}
             </section>

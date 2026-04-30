@@ -29,6 +29,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 1. Frontend: `http://127.0.0.1:8080/healthz`
 2. Backend readiness: `docker compose -f docker-compose.prod.yml exec backend python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3)"`
 3. Prometheus: `http://127.0.0.1:9090`
+4. Backend aliases: `http://127.0.0.1:8000/healthz` and `http://127.0.0.1:8000/readyz`
 
 5. Persist telemetry and metrics using named volumes:
 1. `mlops_sentinel_data`

@@ -30,6 +30,11 @@ Behavior:
 1. Returns `200` with `status=ready` when storage dependency is available.
 2. Returns `503` with `status=not_ready` when storage dependency is unavailable.
 
+## Probe Aliases
+
+1. `GET /healthz` aliases `GET /health`.
+2. `GET /readyz` aliases `GET /ready`.
+
 ## POST /log
 
 Ingest one inference event.
@@ -78,16 +83,37 @@ Query params:
 
 ## Error Contract
 
-Error payload fields:
+All errors return a normalized envelope:
 
-1. `detail`
+```json
+{
+	"error": {
+		"code": "string",
+		"message": "string",
+		"request_id": "string",
+		"details": []
+	}
+}
+```
+
+Common error codes:
+
+1. `bad_request`
+2. `unauthorized`
+3. `payload_too_large`
+4. `validation_error`
+5. `rate_limited`
+6. `internal_error`
 
 Protected endpoint errors:
 
 1. `401 Unauthorized` when API key is required and missing/invalid.
 2. `429 Too Many Requests` when ingestion exceeds configured rate limit.
+3. `429` responses include `Retry-After: 60`.
 
 General request validation errors:
 
 1. `400 Bad Request` when `Content-Length` is malformed.
 2. `413 Payload Too Large` when request body exceeds `MLOPS_MAX_PAYLOAD_BYTES`.
+
+All responses include `X-Request-ID` and security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, `Content-Security-Policy`).
