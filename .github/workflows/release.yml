@@ -81,7 +81,7 @@ jobs:
 
       - name: Docker metadata (backend)
         id: backend_meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/mlops-sentinel-backend
           tags: |
@@ -100,7 +100,7 @@ jobs:
 
       - name: Docker metadata (frontend)
         id: frontend_meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/mlops-sentinel-frontend
           tags: |
