@@ -66,6 +66,10 @@ Then open:
 
 ## Visual Evidence
 
+Drift alert and load demo:
+
+![mlops-sentinel drift alert demo](docs/assets/demo-terminal.png)
+
 Architecture overview:
 
 ![mlops-sentinel architecture overview](docs/assets/architecture-overview.svg)
