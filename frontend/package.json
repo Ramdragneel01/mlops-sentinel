@@ -23,7 +23,7 @@
     "@vitejs/plugin-react": "^4.4.1",
     "eslint": "^9.26.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
-    "globals": "^15.15.0",
+    "globals": "^17.6.0",
     "jsdom": "^25.0.1",
     "vite": "^5.4.8",
     "vitest": "^2.1.8"
