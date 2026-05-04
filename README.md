@@ -105,6 +105,10 @@ Drift alert state preview:
 4. Added synthetic telemetry load script for demo and validation workflows.
 5. Added pipeline handshake integration test coverage for ingest, summary, metrics, and export.
 
+## Week 11 Measured Outcomes
+
+Before and after outcomes are documented in `docs/WEEK11_MEASURED_OUTCOMES.md`.
+
 ## Service Endpoints
 
 1. API: http://127.0.0.1:8000
